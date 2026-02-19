@@ -11,10 +11,11 @@ const DEFAULT_PARAMS = {
   step: 0,
 };
 
-// Mock config to control DENIED_EUNOMIA_URL.
+// Mock config to control DENIED_API_URL and DENIED_API_KEY.
 vi.mock("@app/lib/api/config", () => ({
   default: {
-    getDeniedEunomiaUrl: vi.fn(),
+    getDeniedApiUrl: vi.fn(),
+    getDeniedApiKey: vi.fn(),
   },
 }));
 
@@ -27,20 +28,22 @@ vi.mock("@app/logger/logger", () => ({
 
 describe("checkDeniedAuthorization", () => {
   let mockedGetUrl: ReturnType<typeof vi.fn>;
+  let mockedGetKey: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
-    // Import after mocking so we get the mock.
     const { default: config } = await import("@app/lib/api/config");
-    mockedGetUrl = vi.mocked(config.getDeniedEunomiaUrl);
+    mockedGetUrl = vi.mocked(config.getDeniedApiUrl);
+    mockedGetKey = vi.mocked(config.getDeniedApiKey);
     mockedGetUrl.mockReturnValue("http://localhost:8181");
+    mockedGetKey.mockReturnValue(undefined);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("returns allow when DENIED_EUNOMIA_URL is not set", async () => {
+  it("returns allow when DENIED_API_URL is not set", async () => {
     mockedGetUrl.mockReturnValue(undefined);
 
     const result = await checkDeniedAuthorization(DEFAULT_PARAMS);
@@ -76,6 +79,39 @@ describe("checkDeniedAuthorization", () => {
       properties: { server: "google_calendar" },
     });
     expect(body.action.name).toBe("execute");
+  });
+
+  it("sends X-API-Key header when API key is configured", async () => {
+    mockedGetKey.mockReturnValue("dnd_sk_test_key_123");
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ decision: true }), { status: 200 })
+      );
+
+    await checkDeniedAuthorization(DEFAULT_PARAMS);
+
+    const headers = fetchSpy.mock.calls[0][1]?.headers as Record<
+      string,
+      string
+    >;
+    expect(headers["X-API-Key"]).toBe("dnd_sk_test_key_123");
+  });
+
+  it("omits X-API-Key header when API key is not configured", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ decision: true }), { status: 200 })
+      );
+
+    await checkDeniedAuthorization(DEFAULT_PARAMS);
+
+    const headers = fetchSpy.mock.calls[0][1]?.headers as Record<
+      string,
+      string
+    >;
+    expect(headers["X-API-Key"]).toBeUndefined();
   });
 
   it("returns deny with reason when PDP responds with decision: false", async () => {

@@ -202,7 +202,7 @@ async function createActionForTool(
     });
   }
 
-  // External authorization check via Denied Eunomia PDP.
+  // External authorization check via Denied API.
   // Only runs when Dust's own permission system allows the tool implicitly —
   // skip the external call if the tool already requires user approval.
   if (status === "ready_allowed_implicitly") {
@@ -228,7 +228,9 @@ async function createActionForTool(
             code: "authorization_denied",
             message:
               deniedResult.reason ?? "Action denied by authorization policy",
-            metadata: null,
+            metadata: {
+              errorTitle: "Action blocked",
+            },
           },
           isLastBlockingEventForStep: false,
         },

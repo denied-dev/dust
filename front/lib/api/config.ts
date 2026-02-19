@@ -453,10 +453,14 @@ const config = {
   getGatedAssetsTokenSecret: (): string => {
     return EnvironmentConfig.getEnvVariable("GATED_ASSETS_TOKEN_SECRET");
   },
-  // Denied Eunomia PDP URL for external authorization checks on tool calls.
+  // Denied API URL for external authorization checks on tool calls.
   // When not set, external authorization is disabled (all tool calls proceed as normal).
-  getDeniedEunomiaUrl: (): string | undefined => {
-    return EnvironmentConfig.getOptionalEnvVariable("DENIED_EUNOMIA_URL");
+  getDeniedApiUrl: (): string | undefined => {
+    return EnvironmentConfig.getOptionalEnvVariable("DENIED_API_URL");
+  },
+  // Denied API key (X-API-Token header). Optional but required for production.
+  getDeniedApiKey: (): string | undefined => {
+    return EnvironmentConfig.getOptionalEnvVariable("DENIED_API_KEY");
   },
 };
 

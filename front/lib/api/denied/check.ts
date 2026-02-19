@@ -1,7 +1,7 @@
 import config from "@app/lib/api/config";
 import logger from "@app/logger/logger";
 
-const DENIED_CHECK_TIMEOUT_MS = 50;
+const DENIED_CHECK_TIMEOUT_MS = 500;
 
 interface DeniedCheckParams {
   userId: string | undefined;
@@ -19,10 +19,10 @@ interface DeniedCheckResult {
 }
 
 /**
- * Call the Denied Eunomia PDP /check endpoint to authorize a tool call.
+ * Call the Denied API /pdp/check endpoint to authorize a tool call.
  *
  * Returns { decision: true } (allow) when:
- * - DENIED_EUNOMIA_URL is not configured (feature off)
+ * - DENIED_API_URL is not configured (feature off)
  * - The PDP returns decision: true
  * - The PDP is unreachable or times out (fail-open)
  *
@@ -31,8 +31,8 @@ interface DeniedCheckResult {
 export async function checkDeniedAuthorization(
   params: DeniedCheckParams
 ): Promise<DeniedCheckResult> {
-  const eunomiaUrl = config.getDeniedEunomiaUrl();
-  if (!eunomiaUrl) {
+  const deniedApiUrl = config.getDeniedApiUrl();
+  if (!deniedApiUrl) {
     return { decision: true, reason: null };
   }
 
@@ -69,10 +69,18 @@ export async function checkDeniedAuthorization(
       DENIED_CHECK_TIMEOUT_MS
     );
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    const deniedApiKey = config.getDeniedApiKey();
+    if (deniedApiKey) {
+      headers["X-API-Key"] = deniedApiKey;
+    }
+
     // eslint-disable-next-line no-restricted-globals
-    const response = await fetch(`${eunomiaUrl}/pdp/check`, {
+    const response = await fetch(`${deniedApiUrl}/pdp/check`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     });
@@ -83,10 +91,10 @@ export async function checkDeniedAuthorization(
       logger.warn(
         {
           status: response.status,
-          eunomiaUrl,
+          deniedApiUrl,
           toolName: params.toolName,
         },
-        "Denied Eunomia PDP returned non-OK status, failing open"
+        "Denied API returned non-OK status, failing open"
       );
       return { decision: true, reason: null };
     }
@@ -102,10 +110,10 @@ export async function checkDeniedAuthorization(
     logger.warn(
       {
         err,
-        eunomiaUrl,
+        deniedApiUrl,
         toolName: params.toolName,
       },
-      "Denied Eunomia PDP check failed, failing open"
+      "Denied API check failed, failing open"
     );
     return { decision: true, reason: null };
   }
