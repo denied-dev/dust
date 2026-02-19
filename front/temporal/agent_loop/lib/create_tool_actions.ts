@@ -203,42 +203,40 @@ async function createActionForTool(
   }
 
   // External authorization check via Denied API.
-  // Only runs when Dust's own permission system allows the tool implicitly —
-  // skip the external call if the tool already requires user approval.
-  if (status === "ready_allowed_implicitly") {
-    const deniedResult = await checkDeniedAuthorization({
-      userId: auth.user()?.sId,
-      agentSId: agentConfiguration.sId,
-      toolName: actionConfiguration.originalName,
-      mcpServerName: actionConfiguration.mcpServerName,
-      inputs: rawInputs,
-      conversationSId: conversation.sId,
+  // Runs on all tool calls regardless of Dust's internal approval status —
+  // org-level policy is the top authority.
+  const deniedResult = await checkDeniedAuthorization({
+    userId: auth.user()?.sId,
+    agentSId: agentConfiguration.sId,
+    toolName: actionConfiguration.originalName,
+    mcpServerName: actionConfiguration.mcpServerName,
+    inputs: rawInputs,
+    conversationSId: conversation.sId,
+    step,
+  });
+
+  if (!deniedResult.decision) {
+    return updateResourceAndPublishEvent(auth, {
+      event: {
+        type: "tool_error",
+        created: Date.now(),
+        configurationId: agentConfiguration.sId,
+        messageId: agentMessage.sId,
+        conversationId: conversation.sId,
+        error: {
+          code: "authorization_denied",
+          message:
+            deniedResult.reason ?? "Action denied by authorization policy",
+          metadata: {
+            errorTitle: "Action blocked",
+          },
+        },
+        isLastBlockingEventForStep: false,
+      },
+      agentMessage,
+      conversation,
       step,
     });
-
-    if (!deniedResult.decision) {
-      return updateResourceAndPublishEvent(auth, {
-        event: {
-          type: "tool_error",
-          created: Date.now(),
-          configurationId: agentConfiguration.sId,
-          messageId: agentMessage.sId,
-          conversationId: conversation.sId,
-          error: {
-            code: "authorization_denied",
-            message:
-              deniedResult.reason ?? "Action denied by authorization policy",
-            metadata: {
-              errorTitle: "Action blocked",
-            },
-          },
-          isLastBlockingEventForStep: false,
-        },
-        agentMessage,
-        conversation,
-        step,
-      });
-    }
   }
 
   // Compute augmented inputs with preconfigured data sources, etc.
