@@ -167,39 +167,6 @@ async function createActionForTool(
     mediumStakeContext
   );
 
-  // External authorization check via Denied Eunomia PDP.
-  const deniedResult = await checkDeniedAuthorization({
-    userId: auth.user()?.sId,
-    agentSId: agentConfiguration.sId,
-    toolName: actionConfiguration.originalName,
-    mcpServerName: actionConfiguration.mcpServerName,
-    inputs: rawInputs,
-    conversationSId: conversation.sId,
-    step,
-  });
-
-  if (!deniedResult.decision) {
-    return updateResourceAndPublishEvent(auth, {
-      event: {
-        type: "tool_error",
-        created: Date.now(),
-        configurationId: agentConfiguration.sId,
-        messageId: agentMessage.sId,
-        conversationId: conversation.sId,
-        error: {
-          code: "authorization_denied",
-          message:
-            deniedResult.reason ?? "Action denied by authorization policy",
-          metadata: null,
-        },
-        isLastBlockingEventForStep: false,
-      },
-      agentMessage,
-      conversation,
-      step,
-    });
-  }
-
   const validateToolInputsResult = validateToolInputs(rawInputs);
   if (validateToolInputsResult.isErr()) {
     logger.error(
@@ -233,6 +200,43 @@ async function createActionForTool(
       conversation,
       step,
     });
+  }
+
+  // External authorization check via Denied Eunomia PDP.
+  // Only runs when Dust's own permission system allows the tool implicitly —
+  // skip the external call if the tool already requires user approval.
+  if (status === "ready_allowed_implicitly") {
+    const deniedResult = await checkDeniedAuthorization({
+      userId: auth.user()?.sId,
+      agentSId: agentConfiguration.sId,
+      toolName: actionConfiguration.originalName,
+      mcpServerName: actionConfiguration.mcpServerName,
+      inputs: rawInputs,
+      conversationSId: conversation.sId,
+      step,
+    });
+
+    if (!deniedResult.decision) {
+      return updateResourceAndPublishEvent(auth, {
+        event: {
+          type: "tool_error",
+          created: Date.now(),
+          configurationId: agentConfiguration.sId,
+          messageId: agentMessage.sId,
+          conversationId: conversation.sId,
+          error: {
+            code: "authorization_denied",
+            message:
+              deniedResult.reason ?? "Action denied by authorization policy",
+            metadata: null,
+          },
+          isLastBlockingEventForStep: false,
+        },
+        agentMessage,
+        conversation,
+        step,
+      });
+    }
   }
 
   // Compute augmented inputs with preconfigured data sources, etc.
