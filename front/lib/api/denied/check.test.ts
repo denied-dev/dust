@@ -76,9 +76,9 @@ describe("checkDeniedAuthorization", () => {
     expect(body.resource).toEqual({
       type: "mcp_tool",
       id: "google_calendar_list_events",
-      properties: { server: "google_calendar" },
+      properties: { server: "google_calendar", inputs: { date: "2026-02-19" } },
     });
-    expect(body.action.name).toBe("execute");
+    expect(body.action).toEqual({ name: "execute", properties: {} });
   });
 
   it("sends X-API-Key header when API key is configured", async () => {

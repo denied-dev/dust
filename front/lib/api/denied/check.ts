@@ -47,13 +47,12 @@ export async function checkDeniedAuthorization(
       id: params.toolName,
       properties: {
         server: params.mcpServerName,
+        inputs: params.inputs,
       },
     },
     action: {
       name: "execute",
-      properties: {
-        inputs: params.inputs,
-      },
+      properties: {},
     },
     context: {
       agent: params.agentSId,

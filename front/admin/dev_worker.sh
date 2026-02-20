@@ -14,6 +14,7 @@ NODE_ENV=development npx concurrently \
     --watch 'lib/actions' \
     --watch 'lib/api/mcp' \
     --watch 'lib/api/actions' \
+    --watch 'lib/api/denied' \
     --watch 'lib/resources/skill/global' \
     --ext 'ts,js' \
     --signal 'SIGTERM' \
