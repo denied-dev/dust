@@ -182,7 +182,52 @@ bash ./admin/dev_worker.sh
 
 > **Important:** `tsx` (used by the worker script) does NOT auto-load `.env`, so you must source it manually. Without `DUST_MANAGED_GOOGLE_AI_STUDIO_API_KEY` in the environment, the worker will crash on the first LLM call.
 
-## 12. Configure LLM providers (UI)
+## 12. OAuth Service (for Gmail, Calendar, Drive, etc.)
+
+The OAuth service stores and refreshes OAuth tokens for tool integrations. It's a separate Rust binary.
+
+### Build
+
+```bash
+cd core
+cargo build --release --bin oauth --bin init_db
+```
+
+### Generate encryption key
+
+```bash
+openssl rand -base64 32
+```
+
+Add the result to `front/.env` as `OAUTH_ENCRYPTION_KEY`.
+
+### Initialize tables and start
+
+```bash
+# Init tables (safe to re-run)
+OAUTH_DATABASE_URI="postgres://dev:dev@localhost:5432/dust_front" \
+  ./core/target/release/init_db
+
+# Start (port 3003 matches OAUTH_API in .env)
+OAUTH_DATABASE_URI="postgres://dev:dev@localhost:5432/dust_front" \
+OAUTH_ENCRYPTION_KEY="<your-key>" \
+DISABLE_API_KEY_CHECK=true \
+OAUTH_PORT=3003 \
+./core/target/release/oauth
+```
+
+### Connect Gmail
+
+1. Create a Google Cloud project at https://console.cloud.google.com
+2. Enable the **Gmail API**
+3. Create OAuth consent screen (External, add your email as test user)
+4. Create **OAuth 2.0 Client ID** (Web application)
+5. Add redirect URI: `http://localhost:3011/oauth/gmail/finalize`
+6. In Dust UI, connect Gmail using your `client_id` and `client_secret`
+
+> **Note:** Gmail credentials are entered through the UI at connection time, not via env vars.
+
+## 13. Configure LLM providers (UI)
 
 Per-workspace provider keys are configured through the UI (separate from the managed env var keys):
 
@@ -206,6 +251,7 @@ Login requires [WorkOS](https://dashboard.workos.com) (free dev tier).
 |---------------|------|
 | Next.js       | 3011 |
 | Core API      | 3001 |
+| OAuth         | 3003 |
 | Postgres      | 5432 |
 | Redis         | 6379 |
 | Elasticsearch | 9200 |
