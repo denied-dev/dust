@@ -453,6 +453,15 @@ const config = {
   getGatedAssetsTokenSecret: (): string => {
     return EnvironmentConfig.getEnvVariable("GATED_ASSETS_TOKEN_SECRET");
   },
+  // Denied API URL for external authorization checks on tool calls.
+  // When not set, external authorization is disabled (all tool calls proceed as normal).
+  getDeniedApiUrl: (): string | undefined => {
+    return EnvironmentConfig.getOptionalEnvVariable("DENIED_API_URL");
+  },
+  // Denied API key (X-API-Token header). Optional but required for production.
+  getDeniedApiKey: (): string | undefined => {
+    return EnvironmentConfig.getOptionalEnvVariable("DENIED_API_KEY");
+  },
 };
 
 export default config;

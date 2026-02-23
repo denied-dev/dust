@@ -8,6 +8,7 @@ import {
   DocumentPileIcon,
   EyeIcon,
   InformationCircleIcon,
+  LockIcon,
   Popover,
 } from "@dust-tt/sparkle";
 
@@ -17,7 +18,10 @@ interface ErrorMessageProps {
 }
 
 export function ErrorMessage({ error, retryHandler }: ErrorMessageProps) {
+  const isDenied = error.code === "authorization_denied";
+
   const errorIsRetryable =
+    !isDenied &&
     isAgentErrorCategory(error.metadata?.category) &&
     (error.metadata?.category === "retryable_model_error" ||
       error.metadata?.category === "stream_error");
@@ -37,20 +41,22 @@ export function ErrorMessage({ error, retryHandler }: ErrorMessageProps) {
     <ContentMessage
       // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       title={`${error.metadata?.errorTitle || "Agent error"}`}
-      variant={errorIsRetryable ? "golden" : "warning"}
+      variant={isDenied ? "rose" : errorIsRetryable ? "golden" : "warning"}
       className="flex flex-col gap-3"
-      icon={InformationCircleIcon}
+      icon={isDenied ? LockIcon : InformationCircleIcon}
     >
       <div className="whitespace-normal break-words">{error.message}</div>
       <div className="flex flex-col gap-2 pt-3 sm:flex-row">
-        <Button
-          variant="outline"
-          size="xs"
-          icon={ArrowPathIcon}
-          label="Retry"
-          onClick={retry}
-          disabled={isRetrying}
-        />
+        {!isDenied && (
+          <Button
+            variant="outline"
+            size="xs"
+            icon={ArrowPathIcon}
+            label="Retry"
+            onClick={retry}
+            disabled={isRetrying}
+          />
+        )}
         <Popover
           popoverTriggerAsChild
           trigger={

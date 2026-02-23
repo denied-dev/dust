@@ -7,6 +7,7 @@ import type { ToolInputContext } from "@app/lib/actions/tool_status";
 import { getExecutionStatusFromConfig } from "@app/lib/actions/tool_status";
 import type { StepContext } from "@app/lib/actions/types";
 import { isServerSideMCPToolConfiguration } from "@app/lib/actions/types/guards";
+import { checkDeniedAuthorization } from "@app/lib/api/denied/check";
 import type { MCPToolRetryPolicyType } from "@app/lib/api/mcp";
 import { getRetryPolicyFromToolConfiguration } from "@app/lib/api/mcp";
 import { createMCPAction } from "@app/lib/api/mcp/create_mcp";
@@ -193,6 +194,43 @@ async function createActionForTool(
         },
         // This is not exactly correct, but it's not relevant here as we only care about the
         // blocking nature of the event, which is not the case here.
+        isLastBlockingEventForStep: false,
+      },
+      agentMessage,
+      conversation,
+      step,
+    });
+  }
+
+  // External authorization check via Denied API.
+  // Runs on all tool calls regardless of Dust's internal approval status —
+  // org-level policy is the top authority.
+  const deniedResult = await checkDeniedAuthorization({
+    userId: auth.user()?.sId,
+    agentSId: agentConfiguration.sId,
+    toolName: actionConfiguration.originalName,
+    mcpServerName: actionConfiguration.mcpServerName,
+    inputs: rawInputs,
+    conversationSId: conversation.sId,
+    step,
+  });
+
+  if (!deniedResult.decision) {
+    return updateResourceAndPublishEvent(auth, {
+      event: {
+        type: "tool_error",
+        created: Date.now(),
+        configurationId: agentConfiguration.sId,
+        messageId: agentMessage.sId,
+        conversationId: conversation.sId,
+        error: {
+          code: "authorization_denied",
+          message:
+            deniedResult.reason ?? "Action denied by authorization policy",
+          metadata: {
+            errorTitle: "Action blocked",
+          },
+        },
         isLastBlockingEventForStep: false,
       },
       agentMessage,
