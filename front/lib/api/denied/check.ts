@@ -1,7 +1,7 @@
 import config from "@app/lib/api/config";
 import logger from "@app/logger/logger";
 
-const DENIED_CHECK_TIMEOUT_MS = 500;
+const DENIED_CHECK_TIMEOUT_MS = 10_000;
 
 interface DeniedCheckParams {
   userId: string | undefined;
